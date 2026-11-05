@@ -1,0 +1,9 @@
+# Bulk downloads, about 23 MB. scripts/fetch_data.py re-creates them.
+data/raw/*
+
+# FEC API responses stay in git: they are small, need an API key to refetch,
+# and fec_ie_top100.json was a one-off call that no script reproduces.
+!data/raw/fec_*.json
+
+__pycache__/
+.DS_Store
