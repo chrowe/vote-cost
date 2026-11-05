@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Senate Cost per Vote</title>
+<meta name="description" content="What every 2024 U.S. Senate race cost per general-election vote, from FEC spending and certified returns.">
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb;
+  --raised: #f3f2ef;
+  --line: #e2e1dc;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --accent: #2a78d6;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface: #1a1a19;
+    --raised: #262624;
+    --line: #3a3a37;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --accent: #6ea8ee;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1a19;
+  --raised: #262624;
+  --line: #3a3a37;
+  --text: #f0efec;
+  --text-2: #c3c2b7;
+  --accent: #6ea8ee;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+main { max-width: 1040px; margin: 0 auto; padding: 40px 16px 64px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-size: 18px; margin: 40px 0 8px; }
+.lede { color: var(--text-2); margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 32px 0; }
+.kpi-label { color: var(--text-2); font-size: 13px; }
+.kpi-value { font-size: 28px; font-weight: 600; line-height: 1.25; }
+.kpi-sub { color: var(--text-2); font-size: 13px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 8px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset[disabled] { opacity: 0.5; }
+legend { padding: 0; color: var(--text-2); font-size: 13px; margin-bottom: 4px; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--raised); border-radius: 8px; padding: 2px; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: inherit; }
+.seg span { display: block; padding: 5px 12px; border-radius: 6px; font-size: 14px; }
+.seg input:checked + span { background: var(--surface); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--text-2); margin: 16px 0 8px; min-height: 20px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px; text-align: right; vertical-align: middle; }
+th:first-child, td:first-child { text-align: left; padding-left: 0; }
+th { font-size: 13px; font-weight: 500; color: var(--text-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+th[aria-sort] button { color: var(--text); font-weight: 600; }
+.race > td { border-bottom: 1px solid var(--line); }
+.race { cursor: pointer; }
+.race:hover > td { background: var(--raised); }
+.race-name { all: unset; display: block; font-weight: 600; cursor: pointer; }
+.race-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.race-name::before { content: "\25B8"; display: inline-block; width: 16px; color: var(--text-2); font-weight: 400; }
+.race-name[aria-expanded="true"]::before { content: "\25BE"; }
+.winner { display: block; padding-left: 16px; color: var(--text-2); font-size: 13px; }
+.cost-cell { width: 40%; min-width: 180px; text-align: left; }
+th.cost-cell { padding-left: 16px; }
+.cost-wrap { display: flex; align-items: center; gap: 12px; }
+.cost-value { flex: 0 0 72px; text-align: right; font-weight: 600; font-size: 16px; }
+.bar { flex: 1; display: flex; gap: 2px; height: 10px; min-width: 0; }
+.bar b { display: block; height: 100%; min-width: 0; }
+.bar b:last-child { border-radius: 0 4px 4px 0; }
+.bar .s1 { background: var(--series-1); }
+.bar .s2 { background: var(--series-2); }
+
+.detail > td { padding: 8px 0 24px 16px; border-bottom: 1px solid var(--line); text-align: left; }
+.detail-scroll { overflow-x: auto; }
+.detail table { min-width: 620px; font-size: 14px; }
+.detail th, .detail td { padding: 4px 8px; }
+.detail td:first-child, .detail th:first-child { min-width: 170px; }
+.group th { text-align: left; padding-top: 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.note { color: var(--text-2); font-size: 13px; margin: 8px 0 0; max-width: 72ch; }
+
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; display: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.16); padding: 8px 12px; font-size: 13px; min-width: 210px;
+}
+#tip div { display: flex; justify-content: space-between; gap: 16px; }
+#tip .head { font-weight: 600; margin-bottom: 4px; }
+
+.method li { margin-bottom: 8px; color: var(--text-2); max-width: 76ch; }
+.method strong { color: var(--text); font-weight: 600; }
+.method ul { padding-left: 20px; margin: 8px 0; }
+
+@media (max-width: 720px) {
+  main { padding-top: 24px; }
+  h1 { font-size: 24px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .kpi-value { font-size: 22px; }
+  .hide-sm { display: none; }
+  .cost-cell { width: 46%; min-width: 0; }
+  .cost-wrap { flex-direction: column; align-items: stretch; gap: 4px; }
+  .cost-value { flex: none; text-align: left; }
+  .bar { flex: none; }
+  .detail-scroll { max-width: calc(100vw - 48px); }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>What a vote cost in the 2024 Senate races</h1>
+  <p class="lede">Money spent on each race divided by the votes cast in its November general election. Open any race to see who spent what.</p>
+
+  <section class="kpis" aria-live="polite" id="kpis"></section>
+
+  <form class="filters" id="filters">
+    <fieldset>
+      <legend>Money counted</legend>
+      <div class="seg">
+        <label><input type="radio" name="money" value="all" checked><span>Everything</span></label>
+        <label><input type="radio" name="money" value="campaign"><span>Campaigns</span></label>
+        <label><input type="radio" name="money" value="outside"><span>Outside groups</span></label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Candidates counted</legend>
+      <div class="seg">
+        <label><input type="radio" name="who" value="all" checked><span>Everyone who ran</span></label>
+        <label><input type="radio" name="who" value="general"><span>General ballot only</span></label>
+      </div>
+    </fieldset>
+    <fieldset id="period-field">
+      <legend>Campaign spending period</legend>
+      <div class="seg">
+        <label><input type="radio" name="period" value="2" checked><span>2023–24</span></label>
+        <label><input type="radio" name="period" value="6"><span>Six-year cycle</span></label>
+      </div>
+    </fieldset>
+  </form>
+
+  <div class="legend" id="legend"></div>
+
+  <table id="races">
+    <thead><tr id="head"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <section class="method" id="method">
+    <h2>How this is calculated</h2>
+    <ul>
+      <li><strong>Campaign spending</strong> is total disbursements reported to the FEC by every candidate who filed for the seat, including primary losers and incumbents who retired. It can include refunds, loan repayments and transfers, so it runs slightly above money spent on persuading voters. Wesley Bell and Matt Rosendale are left out: their brief Senate bids shared one committee with their House campaigns.</li>
+      <li><strong>Outside spending</strong> is independent expenditures reported to the FEC for or against those candidates, by super PACs, party committees and other groups. Issue ads that never name a candidate as an election target, and coordinated party spending, are not included, so true totals are higher. <span id="outside-basis"></span></li>
+      <li><strong>Votes</strong> are general-election votes for any candidate, including write-ins and Nevada's “None of these candidates”. Undervotes, overvotes and void ballots are removed. The denominator is the same for every filter, even though primary money also reached primary voters.</li>
+      <li><strong>Periods.</strong> 2023–24 keeps every race comparable. The six-year option adds what incumbents spent in 2019–22, much of it fundraising and unrelated to this race. Outside spending does not change with this option.</li>
+      <li><strong>California</strong> is one row. Its full-term and special elections shared the same finalists and the same money, so they can't be separated. <strong>Nebraska</strong> had two unrelated elections and has two rows.</li>
+    </ul>
+    <h2>Sources</h2>
+    <ul>
+      <li><a href="https://api.open.fec.gov/developers/">FEC API</a> and <a href="https://www.fec.gov/data/browse-data/?tab=bulk-data">FEC bulk candidate summaries</a> for money, through December 31, 2024.</li>
+      <li><a href="https://doi.org/10.7910/DVN/PEJ5QU">MIT Election Data + Science Lab, U.S. Senate statewide 1976–2024</a> for votes, checked against the <a href="https://clerk.house.gov/member_info/electionInfo/2024/statistics2024.pdf">House Clerk's official 2024 statistics</a>.</li>
+      <li><a href="data/senate_2024_cost_per_vote.csv">Download the results as CSV</a>.</li>
+    </ul>
+  </section>
+</main>
+<div id="tip" role="presentation"></div>
+
+<script src="data/races.js"></script>
+<script>
+(function () {
+  "use strict";
+  var RACES = window.SENATE_2024.races;
+  var state = { money: "all", who: "all", period: "2", sort: "cost", desc: true };
+  var open = {};
+  var COLUMNS = [
+    { key: "race", label: "Race and winner", desc: false },
+    { key: "votes", label: "Votes", desc: true, cls: "hide-sm" },
+    { key: "margin", label: "Margin", desc: false, cls: "hide-sm" },
+    { key: "total", label: "Money", desc: true },
+    { key: "cost", label: "Cost per vote", desc: true, cls: "cost-cell" }
+  ];
+
+  function el(id) { return document.getElementById(id); }
+  function esc(text) {
+    var node = document.createElement("span");
+    node.textContent = text;
+    return node.innerHTML;
+  }
+  function money(n) {
+    if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
+    if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return "$" + Math.round(n / 1e3) + "K";
+    return n > 0 ? "$" + Math.round(n) : "$0";
+  }
+  function perVote(n) { return "$" + n.toFixed(2); }
+  function count(n) { return n.toLocaleString("en-US"); }
+  function pct(n) { return (n * 100).toFixed(1) + "%"; }
+  function label(race) { return race.state + (race.special ? " (special)" : ""); }
+
+  function campaignOf(c) { return state.period === "6" ? c.spend6 : c.spend2; }
+  function counted(race) {
+    return race.candidates.filter(function (c) { return state.who === "all" || c.votes; });
+  }
+
+  // The whole calculation: sum the money in scope, divide by general-election votes.
+  function measure(race) {
+    var campaign = 0, outside = 0;
+    counted(race).forEach(function (c) {
+      if (state.money !== "outside") campaign += campaignOf(c);
+      if (state.money !== "campaign") outside += c.for + c.against;
+    });
+    return { race: race, campaign: campaign, outside: outside, total: campaign + outside, cost: (campaign + outside) / race.votes };
+  }
+
+  function sorted(items) {
+    var dir = state.desc ? -1 : 1;
+    return items.slice().sort(function (a, b) {
+      if (state.sort === "race") return dir * label(a.race).localeCompare(label(b.race));
+      var pick = function (m) { return state.sort === "votes" || state.sort === "margin" ? m.race[state.sort] : m[state.sort]; };
+      return dir * (pick(a) - pick(b)) || b.cost - a.cost;
+    });
+  }
+
+  function renderKpis(items) {
+    var money_ = items.reduce(function (s, m) { return s + m.total; }, 0);
+    var votes = items.reduce(function (s, m) { return s + m.race.votes; }, 0);
+    var ranked = items.slice().sort(function (a, b) { return b.cost - a.cost; });
+    var top = ranked[0], low = ranked[ranked.length - 1];
+    var tile = function (name, value, sub) {
+      return '<div><div class="kpi-label">' + name + '</div><div class="kpi-value">' + value + '</div><div class="kpi-sub">' + sub + "</div></div>";
+    };
+    el("kpis").innerHTML =
+      tile("All races combined", perVote(money_ / votes), "per vote") +
+      tile("Most expensive", perVote(top.cost), esc(label(top.race))) +
+      tile("Least expensive", perVote(low.cost), esc(label(low.race))) +
+      tile("Total money", money(money_), count(votes) + " votes");
+  }
+
+  function renderLegend() {
+    var parts = [];
+    if (state.money !== "outside") parts.push('<span><i style="background:var(--series-1)"></i>Campaigns</span>');
+    if (state.money !== "campaign") parts.push('<span><i style="background:var(--series-2)"></i>Outside groups</span>');
+    el("legend").innerHTML = parts.length > 1 ? parts.join("") : "";
+  }
+
+  function renderHead() {
+    el("head").innerHTML = COLUMNS.map(function (col) {
+      var sort = state.sort === col.key ? ' aria-sort="' + (state.desc ? "descending" : "ascending") + '"' : "";
+      var arrow = state.sort === col.key ? (state.desc ? " ↓" : " ↑") : "";
+      return '<th scope="col"' + sort + (col.cls ? ' class="' + col.cls + '"' : "") + '><button type="button" data-sort="' + col.key + '">' + col.label + arrow + "</button></th>";
+    }).join("");
+  }
+
+  function candidateRow(c) {
+    var campaign = campaignOf(c);
+    var backed = campaign + c.for;
+    return "<tr><td>" + esc(c.name) + " (" + esc(c.party) + ")</td>" +
+      "<td>" + (c.votes ? count(c.votes) : "") + "</td>" +
+      "<td>" + (c.votes ? pct(c.pct) : "") + "</td>" +
+      "<td>" + money(campaign) + "</td>" +
+      "<td>" + money(c.for) + "</td><td>" + money(c.against) + "</td>" +
+      "<td>" + (c.votes ? perVote(backed / c.votes) : "") + "</td></tr>";
+  }
+
+  function detailRow(m) {
+    var people = counted(m.race);
+    var ballot = people.filter(function (c) { return c.votes; });
+    var others = people.filter(function (c) { return !c.votes; });
+    var size = function (c) { return campaignOf(c) + c.for + c.against; };
+    others.sort(function (a, b) { return size(b) - size(a); });
+    var minor = others.filter(function (c) { return size(c) < 50000; });
+    var shown = others.filter(function (c) { return size(c) >= 50000; });
+    var rows = ballot.map(candidateRow).join("");
+    if (shown.length || minor.length) {
+      rows += '<tr class="group"><th colspan="7">Not on the general ballot: primary losers, withdrawals, retirees</th></tr>';
+      rows += shown.map(candidateRow).join("");
+      if (minor.length) {
+        var sum = minor.reduce(function (s, c) { return s + size(c); }, 0);
+        rows += "<tr><td>" + minor.length + " others under $50K each</td><td></td><td></td><td colspan=\"3\">" + money(sum) + " combined</td><td></td></tr>";
+      }
+    }
+    return '<tr class="detail"><td colspan="5"><div class="detail-scroll"><table><thead><tr>' +
+      '<th scope="col">Candidate</th><th scope="col">Votes</th><th scope="col">Share</th><th scope="col">Campaign</th><th scope="col">Outside for</th><th scope="col">Outside against</th><th scope="col" title="Campaign spending plus outside money supporting them, per vote they received">Own + allied $ per vote</th>' +
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>" +
+      (m.race.note ? '<p class="note">' + esc(m.race.note) + "</p>" : "") + "</td></tr>";
+  }
+
+  function renderRows(items) {
+    var max = Math.max.apply(null, items.map(function (m) { return m.cost; })) || 1;
+    el("rows").innerHTML = sorted(items).map(function (m) {
+      var r = m.race, isOpen = !!open[r.id];
+      var w1 = (m.campaign / r.votes / max) * 100, w2 = (m.outside / r.votes / max) * 100;
+      var bars = (m.campaign > 0 ? '<b class="s1" style="width:' + w1 + '%"></b>' : "") + (m.outside > 0 ? '<b class="s2" style="width:' + w2 + '%"></b>' : "");
+      return '<tr class="race" data-id="' + r.id + '">' +
+        '<td><button type="button" class="race-name" aria-expanded="' + isOpen + '">' + esc(label(r)) + "</button>" +
+        '<span class="winner">' + esc(r.winner) + " (" + esc(r.winnerParty) + ")</span></td>" +
+        '<td class="hide-sm">' + count(r.votes) + "</td>" +
+        '<td class="hide-sm">' + pct(r.margin) + "</td>" +
+        "<td>" + money(m.total) + "</td>" +
+        '<td class="cost-cell"><div class="cost-wrap"><span class="cost-value">' + perVote(m.cost) + '</span><div class="bar">' + bars + "</div></div></td></tr>" +
+        (isOpen ? detailRow(m) : "");
+    }).join("");
+  }
+
+  function render() {
+    var items = RACES.map(measure);
+    el("period-field").disabled = state.money === "outside";
+    renderKpis(items);
+    renderLegend();
+    renderHead();
+    renderRows(items);
+  }
+
+  el("filters").addEventListener("change", function (e) {
+    state[e.target.name] = e.target.value;
+    render();
+  });
+  el("filters").addEventListener("submit", function (e) { e.preventDefault(); });
+  el("head").addEventListener("click", function (e) {
+    var button = e.target.closest("button");
+    if (!button) return;
+    var key = button.getAttribute("data-sort");
+    var col = COLUMNS.filter(function (c) { return c.key === key; })[0];
+    state.desc = state.sort === key ? !state.desc : col.desc;
+    state.sort = key;
+    render();
+  });
+  el("rows").addEventListener("click", function (e) {
+    var row = e.target.closest(".race");
+    if (!row) return;
+    var id = row.getAttribute("data-id");
+    open[id] = !open[id];
+    render();
+    var again = el("rows").querySelector('[data-id="' + id + '"] .race-name');
+    if (again && e.detail === 0) again.focus();
+  });
+
+  var tip = el("tip");
+  el("rows").addEventListener("mousemove", function (e) {
+    var bar = e.target.closest(".cost-wrap");
+    if (!bar) { tip.style.display = "none"; return; }
+    var id = e.target.closest(".race").getAttribute("data-id");
+    var m = measure(RACES.filter(function (r) { return r.id === id; })[0]);
+    var line = function (name, amount) {
+      return "<div><span>" + name + "</span><span>" + money(amount) + " · " + perVote(amount / m.race.votes) + "</span></div>";
+    };
+    tip.innerHTML = '<div class="head"><span>' + esc(label(m.race)) + "</span></div>" +
+      (state.money !== "outside" ? line("Campaigns", m.campaign) : "") +
+      (state.money !== "campaign" ? line("Outside groups", m.outside) : "");
+    tip.style.display = "block";
+    var x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    var y = Math.min(e.clientY + 14, window.innerHeight - tip.offsetHeight - 8);
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  });
+  el("rows").addEventListener("mouseleave", function () { tip.style.display = "none"; });
+
+  el("outside-basis").textContent = window.SENATE_2024.outsideExact
+    ? "All figures are the FEC's own totals."
+    : "Figures above about $7M per candidate and side are the FEC's own totals. Smaller ones are summed from FEC filing records, which ran about 2% from FEC totals in the two races compared (Ohio and Montana) and can be further off for one candidate.";
+  render();
+})();
+</script>
+</body>
+</html>
