@@ -1,6 +1,7 @@
-# Senate cost per vote, 2024
+# Senate campaign spending per vote, 2024
 
-What every 2024 U.S. Senate race cost per general-election vote.
+Campaign spending per general-election vote in every 2024 U.S. Senate race, counting
+candidates and outside groups.
 
 **Live site:** https://chrowe.github.io/vote-cost/
 
