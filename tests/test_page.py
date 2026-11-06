@@ -369,6 +369,10 @@ class Browser:
                   windowsVirtualKeyCode=13, text="\r")
         self.call("Input.dispatchKeyEvent", type="keyUp", key="Enter", code="Enter", windowsVirtualKeyCode=13)
 
+    def press_escape(self):
+        for kind in ("keyDown", "keyUp"):
+            self.call("Input.dispatchKeyEvent", type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27)
+
     def close(self):
         if self.socket:
             self.socket.close()
@@ -481,6 +485,32 @@ def tooltip_failures(page):
     return failures
 
 
+def info_state(page):
+    """Each help button's state, with the box of its pop-up when one is open."""
+    return page.js("""[...document.querySelectorAll('.info')].map(button => {
+      const pop = document.getElementById(button.getAttribute('aria-controls'));
+      const box = pop.getBoundingClientRect();
+      return {
+        id: pop.id, label: button.getAttribute('aria-label'), expanded: button.getAttribute('aria-expanded') === 'true',
+        shown: !pop.hidden && getComputedStyle(pop).display !== 'none', left: box.left, right: box.right,
+        pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth
+      };
+    })""")
+
+
+def click_info(page, key):
+    page.click_mouse(*page.js(f"""(() => {{
+      const button = document.querySelector('[aria-controls="info-{key}"]');
+      button.scrollIntoView({{block: 'center'}});
+      const r = button.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    }})()"""))
+
+
+def open_info(page):
+    return [state["id"] for state in info_state(page) if state["shown"] and state["expanded"]]
+
+
 def off_screen(tip, where):
     inside = tip["left"] >= 0 and tip["right"] <= tip["width"] and tip["top"] >= 0 and tip["bottom"] <= tip["height"]
     return [] if inside else [f"{where}: tooltip is off screen: {tip}"]
@@ -581,6 +611,68 @@ class PageTests(unittest.TestCase):
                     where = f"{width}px {block} {race['id']}"
                     self.assertTrue(tip["shown"], where)
                     self.assertNoFailures(differences(expected_tip(race, filters), tip, where) + off_screen(tip, where))
+
+    def test_info_buttons_open_and_close_with_the_mouse(self):
+        self.assertEqual(open_info(self.page), [])
+        self.assertEqual([s["label"] for s in info_state(self.page)],
+                         ["About Money counted", "About Candidates counted", "About Campaign spending period"])
+        for key in ("money", "who", "period"):
+            click_info(self.page, key)
+            self.assertEqual(open_info(self.page), [f"info-{key}"], "opening")
+            click_info(self.page, key)
+            self.assertEqual(open_info(self.page), [], "clicking the button again")
+        click_info(self.page, "money")
+        click_info(self.page, "who")
+        self.assertEqual(open_info(self.page), ["info-who"], "only one is open at a time")
+        inside = self.page.js("(() => { const r = document.getElementById('info-who').getBoundingClientRect(); return [r.left + 20, r.top + 20]; })()")
+        self.page.click_mouse(*inside)
+        self.assertEqual(open_info(self.page), ["info-who"], "clicking inside the pop-up")
+        away = self.page.js("(() => { const r = document.querySelector('h1').getBoundingClientRect(); return [r.left + 5, r.top + 5]; })()")
+        self.page.click_mouse(*away)
+        self.assertEqual(open_info(self.page), [], "clicking elsewhere")
+
+    def test_info_buttons_work_with_the_keyboard(self):
+        self.page.js("document.querySelector('[aria-controls=\"info-who\"]').focus()")
+        self.page.press_enter()
+        self.assertEqual(open_info(self.page), ["info-who"], "Enter opens")
+        self.page.press_escape()
+        self.assertEqual(open_info(self.page), [], "Esc closes")
+        self.assertEqual(self.page.js("document.activeElement.getAttribute('aria-controls')"), "info-who", "focus returns to the button")
+
+    def test_info_popups_do_not_change_the_results(self):
+        filters = {"money": "all", "who": "all", "period": "2"}
+        for key in ("money", "who", "period"):
+            click_info(self.page, key)
+            self.assertNoFailures(differences(expected_view(filters), self.page.js(SNAPSHOT), key))
+
+    def test_period_info_works_when_the_filter_is_off(self):
+        set_filters(self.page, "outside", "all", "2")
+        self.assertTrue(self.page.js("document.getElementById('period-field').disabled"))
+        click_info(self.page, "period")
+        self.assertEqual(open_info(self.page), ["info-period"])
+        self.assertIn("turned off when you view outside groups alone", self.page.js("document.getElementById('info-period').textContent"))
+        self.assertEqual(self.page.js("getComputedStyle(document.getElementById('info-period')).opacity"), "1", "pop-up is dimmed")
+
+    def test_info_popups_stay_on_screen(self):
+        for width, height in ((1280, 900), (800, 900), (390, 844), (320, 700)):
+            self.page.resize(width, height)
+            self.page.load(ROOT / "index.html")
+            closed_width = self.page.js("document.documentElement.scrollWidth")
+            for key in ("money", "who", "period"):
+                click_info(self.page, key)
+                state = next(s for s in info_state(self.page) if s["id"] == f"info-{key}")
+                where = f"{width}px {key}: {state}"
+                self.assertTrue(state["shown"], where)
+                self.assertGreaterEqual(state["left"], 0, where)
+                self.assertLessEqual(state["right"], state["pageWidth"], where)
+                self.assertEqual(state["scrollWidth"], closed_width, f"adds sideways scrolling at {where}")
+                click_info(self.page, key)
+
+    def test_maryland_figures_are_the_only_hardcoded_results(self):
+        maryland = next(race for race in RACES if race["id"] == "MD")
+        figures = [per_vote(measure(maryland, {"money": "all", "who": who, "period": "2"})["cost"]) for who in ("all", "general")]
+        copy = self.page.js("[...document.querySelectorAll('.info-pop')].map(p => p.textContent).join(' ')")
+        self.assertEqual(re.findall(r"\$\d[\d,.]*", copy), figures)
 
     def test_wrong_figures_make_the_checks_fail(self):
         source = (ROOT / "index.html").read_text(encoding="utf-8")

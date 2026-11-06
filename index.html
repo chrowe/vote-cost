@@ -61,9 +61,24 @@ a { color: var(--accent); }
 .kpi-sub { color: var(--text-2); font-size: 13px; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-bottom: 8px; }
-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-fieldset[disabled] { opacity: 0.5; }
+fieldset { position: relative; border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset[disabled] .seg, fieldset[disabled] .legend-text { opacity: 0.5; }
 legend { padding: 0; color: var(--text-2); font-size: 13px; margin-bottom: 4px; }
+.info { all: unset; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin: -4px 0 -4px 2px; cursor: pointer; vertical-align: middle; }
+.info span { display: block; width: 15px; height: 15px; border: 1px solid var(--text-2); border-radius: 50%; color: var(--text-2); font-size: 11px; font-weight: 600; line-height: 15px; text-align: center; }
+.info:hover span, .info[aria-expanded="true"] span { background: var(--text-2); color: var(--surface); }
+.info:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+.info-pop {
+  position: absolute; z-index: 20; width: min(340px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.16); padding: 10px 12px; font-size: 13px; line-height: 1.45;
+}
+.info-pop ul { margin: 0; padding-left: 16px; }
+.info-pop ul ul { margin-top: 4px; }
+.info-pop li { margin-bottom: 6px; }
+.info-pop li:last-child { margin-bottom: 0; }
+.info-pop p { margin: 8px 0 0; color: var(--text-2); }
+.info-pop strong { font-weight: 600; }
 .seg { display: inline-flex; flex-wrap: wrap; background: var(--raised); border-radius: 8px; padding: 2px; }
 .seg label { position: relative; cursor: pointer; }
 .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: inherit; }
@@ -142,7 +157,20 @@ th.cost-cell { padding-left: 16px; }
 
   <form class="filters" id="filters">
     <fieldset>
-      <legend>Money counted</legend>
+      <legend><span class="legend-text">Money counted</span><button type="button" class="info" aria-label="About Money counted" aria-expanded="false" aria-controls="info-money"><span aria-hidden="true">i</span></button></legend>
+      <div class="info-pop" id="info-money" hidden>
+        <ul>
+          <li><strong>Everything:</strong> campaign spending plus outside spending.</li>
+          <li><strong>Campaigns:</strong> what candidates' own committees reported spending to the FEC. This can include refunds, loan repayments and transfers.</li>
+          <li><strong>Outside groups:</strong> independent spending by super PACs, party committees and other groups. Each filing names a candidate and says whether the money supported or opposed them.
+            <ul>
+              <li><strong>Money for and against both count.</strong> Spending against a candidate adds to the race's total and is never subtracted, because it was still spent trying to sway that election. Most outside money was spent against a candidate.</li>
+              <li><strong>Not included:</strong> issue ads that don't target a candidate, and coordinated party spending.</li>
+              <li><strong>Not shown in filings:</strong> who funded a group, or what its ads said.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
       <div class="seg">
         <label><input type="radio" name="money" value="all" checked><span>Everything</span></label>
         <label><input type="radio" name="money" value="campaign"><span>Campaigns</span></label>
@@ -150,14 +178,28 @@ th.cost-cell { padding-left: 16px; }
       </div>
     </fieldset>
     <fieldset>
-      <legend>Candidates counted</legend>
+      <legend><span class="legend-text">Candidates counted</span><button type="button" class="info" aria-label="About Candidates counted" aria-expanded="false" aria-controls="info-who"><span aria-hidden="true">i</span></button></legend>
+      <div class="info-pop" id="info-who" hidden>
+        <ul>
+          <li><strong>Everyone who ran:</strong> everyone who filed for the seat, including primary losers, candidates who withdrew and retiring incumbents. Wesley Bell and Matt Rosendale are left out because their Senate bids shared a committee with their House campaigns.</li>
+          <li><strong>General ballot only:</strong> only candidates on the November ballot. Money spent by, for or against anyone else is dropped. In Maryland, this takes the cost from $54.73 to $30.57 per vote.</li>
+        </ul>
+        <p>Either way, the money is divided by the same November vote total.</p>
+      </div>
       <div class="seg">
         <label><input type="radio" name="who" value="all" checked><span>Everyone who ran</span></label>
         <label><input type="radio" name="who" value="general"><span>General ballot only</span></label>
       </div>
     </fieldset>
     <fieldset id="period-field">
-      <legend>Campaign spending period</legend>
+      <legend><span class="legend-text">Campaign spending period</span><button type="button" class="info" aria-label="About Campaign spending period" aria-expanded="false" aria-controls="info-period"><span aria-hidden="true">i</span></button></legend>
+      <div class="info-pop" id="info-period" hidden>
+        <ul>
+          <li><strong>2023–24:</strong> campaign spending in the two years before the election, which keeps races comparable.</li>
+          <li><strong>Six-year cycle:</strong> adds what incumbents spent in 2019–22, much of it fundraising unrelated to this race.</li>
+        </ul>
+        <p>This only affects campaign spending, so it's turned off when you view outside groups alone.</p>
+      </div>
       <div class="seg">
         <label><input type="radio" name="period" value="2" checked><span>2023–24</span></label>
         <label><input type="radio" name="period" value="6"><span>Six-year cycle</span></label>
@@ -359,6 +401,46 @@ th.cost-cell { padding-left: 16px; }
     render();
     var again = el("rows").querySelector('[data-id="' + id + '"] .race-name');
     if (again && e.detail === 0) again.focus();
+  });
+
+  // Filter help. Each button is in its fieldset's legend, so it still works when the fieldset is disabled.
+  var openInfo = null;
+  function placeInfo(button, pop) {
+    // Below the options, so they stay visible while reading about them.
+    pop.style.top = button.closest("fieldset").offsetHeight + 4 + "px";
+    pop.style.left = "0px";
+    var overflow = pop.getBoundingClientRect().right - (document.documentElement.clientWidth - 16);
+    if (overflow > 0) pop.style.left = -overflow + "px";
+  }
+  function closeInfo() {
+    if (!openInfo) return;
+    openInfo.setAttribute("aria-expanded", "false");
+    el(openInfo.getAttribute("aria-controls")).hidden = true;
+    openInfo = null;
+  }
+  el("filters").addEventListener("click", function (e) {
+    var button = e.target.closest(".info");
+    if (!button) return;
+    var wasOpen = button === openInfo;
+    closeInfo();
+    if (wasOpen) return;
+    var pop = el(button.getAttribute("aria-controls"));
+    pop.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    openInfo = button;
+    placeInfo(button, pop);
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (openInfo && !e.target.closest(".info, .info-pop")) closeInfo();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || !openInfo) return;
+    var button = openInfo;
+    closeInfo();
+    button.focus();
+  });
+  window.addEventListener("resize", function () {
+    if (openInfo) placeInfo(openInfo, el(openInfo.getAttribute("aria-controls")));
   });
 
   var tip = el("tip");
