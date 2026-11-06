@@ -2,6 +2,8 @@
 
 What every 2024 U.S. Senate race cost per general-election vote.
 
+**Live site:** https://chrowe.github.io/vote-cost/
+
 Open `index.html` in a browser. There is nothing to install or serve, and the
 filters recalculate in the page. Results are also in
 `data/senate_2024_cost_per_vote.csv`.
@@ -61,3 +63,8 @@ page to confirm the checks notice. They run on every pull request through GitHub
 
 - FEC: [API](https://api.open.fec.gov/developers/) and [bulk data](https://www.fec.gov/data/browse-data/?tab=bulk-data)
 - [MIT Election Data + Science Lab, U.S. Senate statewide 1976-2024](https://doi.org/10.7910/DVN/PEJ5QU) (CC0), checked against the [House Clerk's 2024 statistics](https://clerk.house.gov/member_info/electionInfo/2024/statistics2024.pdf)
+
+## License
+
+The code is under the [MIT License](LICENSE). That doesn't change the terms of the
+source data: FEC data and the MIT Election Lab's CC0 dataset keep their own terms.
