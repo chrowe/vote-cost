@@ -35,6 +35,16 @@ filing records. With a key, the commands above fetch every total and the page's
 methodology note updates itself. Without one, `DEMO_KEY` locks out after about
 10 calls for roughly 18 hours.
 
+## Testing
+
+    python3 tests/test_page.py
+
+Needs Python 3.9+ and Google Chrome, and nothing else. No downloads are needed, so
+it runs from a fresh clone. If Chrome isn't found, set `CHROME` to its path. The tests
+recalculate every displayed figure from `data/races.js` under every filter combination,
+and use real mouse movement for the tooltip. They also break figures in a copy of the
+page to confirm the checks notice. They run on every pull request through GitHub Actions.
+
 ## Data decisions worth knowing
 
 | Issue | Handling |
